@@ -1,70 +1,111 @@
 // providers/auth_provider.dart
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 
 class AuthProvider with ChangeNotifier {
+  // Instance client Supabase
+  final SupabaseClient _supabase = Supabase.instance.client;
+
   UserModel? _user;
-  bool _isAuthenticated = false;
+  bool _isLoading = false;
 
   UserModel? get user => _user;
-  bool get isAuthenticated => _isAuthenticated;
+  bool get isAuthenticated => _user != null;
+  bool get isLoading => _isLoading;
 
-  // Mock database
-  final List<UserModel> _mockUsers = [];
+  AuthProvider() {
+    _loadUser();
+  }
 
+  // Cek apakah user sudah login sebelumnya (Session persistence)
+  void _loadUser() {
+    final session = _supabase.auth.currentSession;
+    final currentUser = _supabase.auth.currentUser;
+
+    if (session != null && currentUser != null) {
+      _user = _mapSupabaseUserToModel(currentUser);
+      notifyListeners();
+    }
+  }
+
+  // Fungsi Login ke Supabase
   Future<bool> login(String email, String password) async {
-    // Simulate network delay
-    await Future.delayed(const Duration(seconds: 1));
-
     try {
-      // Simple mock check
-      final user = _mockUsers.firstWhere(
-        (u) => u.email == email && u.password == password,
-        orElse: () => throw Exception('User not found'),
+      final response = await _supabase.auth.signInWithPassword(
+        email: email,
+        password: password,
       );
 
-      _user = user;
-      _isAuthenticated = true;
-      notifyListeners();
-      return true;
+      if (response.user != null) {
+        _user = _mapSupabaseUserToModel(response.user!);
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } on AuthException catch (e) {
+      debugPrint('Auth Error: ${e.message}');
+      return false;
     } catch (e) {
+      debugPrint('Unexpected Error: $e');
       return false;
     }
   }
 
+  // Fungsi Register ke Supabase
   Future<bool> register(
     String name,
     String email,
     String password,
     DateTime dob,
   ) async {
-    await Future.delayed(const Duration(seconds: 1));
+    try {
+      // Kita simpan Nama dan Tgl Lahir di "User Metadata"
+      final response = await _supabase.auth.signUp(
+        email: email,
+        password: password,
+        data: {
+          'full_name': name,
+          'dob': dob.toIso8601String(),
+        },
+      );
 
-    // Check if email already exists
-    if (_mockUsers.any((u) => u.email == email)) {
+      if (response.user != null) {
+        _user = _mapSupabaseUserToModel(response.user!);
+        notifyListeners();
+        return true;
+      }
+      return false;
+    } on AuthException catch (e) {
+      debugPrint('Register Error: ${e.message}');
+      return false;
+    } catch (e) {
+      debugPrint('Unexpected Error: $e');
       return false;
     }
-
-    final newUser = UserModel(
-      id: DateTime.now().toString(),
-      name: name,
-      email: email,
-      password: password,
-      dateOfBirth: dob,
-    );
-
-    _mockUsers.add(newUser);
-
-    // Auto login after register
-    _user = newUser;
-    _isAuthenticated = true;
-    notifyListeners();
-    return true;
   }
 
-  void logout() {
+  // Fungsi Logout
+  Future<void> logout() async {
+    await _supabase.auth.signOut();
     _user = null;
-    _isAuthenticated = false;
     notifyListeners();
+  }
+
+  // Helper: Mengubah User dari Supabase menjadi UserModel aplikasi kita
+  UserModel _mapSupabaseUserToModel(User supabaseUser) {
+    final metadata = supabaseUser.userMetadata;
+    
+    return UserModel(
+      id: supabaseUser.id,
+      email: supabaseUser.email ?? '',
+      // Ambil nama dari metadata, jika kosong pakai 'Pengguna'
+      name: metadata?['full_name'] ?? 'Pengguna',
+      // Ambil tgl lahir dari metadata
+      dateOfBirth: metadata?['dob'] != null 
+          ? DateTime.tryParse(metadata!['dob']) 
+          : null,
+      password: '', // Password tidak kita simpan di lokal demi keamanan
+    );
   }
 }

@@ -4,6 +4,7 @@ import 'package:posyandu_flutter/screens/history_screen.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../screens/history_screen.dart';
+import '../screens/schedule_screen.dart';
 import '../utils/theme.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -77,6 +78,14 @@ class HomeScreen extends StatelessWidget {
                     Icons.calendar_month_rounded,
                     const Color(0xFFE3F2FD),
                     const Color(0xFF2196F3),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ScheduleScreen(),
+                        ),
+                      );
+                    },
                   ),
                   _buildMenuCard(
                     context,
