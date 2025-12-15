@@ -41,19 +41,43 @@ class HomeScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppTheme.primaryColor,
-                        width: 2,
+                  PopupMenuButton(
+                    icon: Container(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppTheme.primaryColor,
+                          width: 2,
+                        ),
+                      ),
+                      child: const CircleAvatar(
+                        radius: 24,
+                        backgroundColor: Colors.white,
+                        child: Icon(Icons.person, color: AppTheme.primaryColor),
                       ),
                     ),
-                    child: const CircleAvatar(
-                      radius: 24,
-                      backgroundColor: Colors.white,
-                      child: Icon(Icons.person, color: AppTheme.primaryColor),
-                    ),
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        child: Row(
+                          children: const [
+                            Icon(Icons.logout, size: 20),
+                            SizedBox(width: 8),
+                            Text('Logout'),
+                          ],
+                        ),
+                        onTap: () async {
+                          await Provider.of<AuthProvider>(
+                            context,
+                            listen: false,
+                          ).logout();
+                          if (context.mounted) {
+                            Navigator.of(
+                              context,
+                            ).pushNamedAndRemoveUntil('/', (route) => false);
+                          }
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
