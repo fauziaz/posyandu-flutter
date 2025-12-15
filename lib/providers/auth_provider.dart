@@ -4,64 +4,55 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 
 class AuthProvider with ChangeNotifier {
+  // Instance client Supabase
+  final SupabaseClient _supabase = Supabase.instance.client;
+
   UserModel? _user;
-  bool _isAuthenticated = false;
-  String? _errorMessage;
+  bool _isLoading = false;
 
   UserModel? get user => _user;
-  bool get isAuthenticated => _isAuthenticated;
-  String? get errorMessage => _errorMessage;
+  bool get isAuthenticated => _user != null;
+  bool get isLoading => _isLoading;
 
-  final _supabase = Supabase.instance.client;
-
-  // Check if user is already logged in
-  Future<void> checkAuthStatus() async {
-    try {
-      final session = _supabase.auth.currentSession;
-      if (session != null) {
-        await _loadUserProfile(session.user.id);
-      }
-    } catch (e) {
-      _errorMessage = e.toString();
-    }
+  AuthProvider() {
+    _loadUser();
   }
 
-  // Load user profile from database
-  Future<void> _loadUserProfile(String userId) async {
-    try {
-      final response = await _supabase
-          .from('users')
-          .select()
-          .eq('id', userId)
-          .single();
+  // Cek apakah user sudah login sebelumnya (Session persistence)
+  void _loadUser() {
+    final session = _supabase.auth.currentSession;
+    final currentUser = _supabase.auth.currentUser;
 
-      _user = UserModel.fromJson(response);
-      _isAuthenticated = true;
+    if (session != null && currentUser != null) {
+      _user = _mapSupabaseUserToModel(currentUser);
       notifyListeners();
-    } catch (e) {
-      _errorMessage = e.toString();
     }
   }
 
+  // Fungsi Login ke Supabase
   Future<bool> login(String email, String password) async {
     try {
-      _errorMessage = null;
       final response = await _supabase.auth.signInWithPassword(
         email: email,
         password: password,
       );
 
       if (response.user != null) {
-        await _loadUserProfile(response.user!.id);
+        _user = _mapSupabaseUserToModel(response.user!);
+        notifyListeners();
         return true;
       }
       return false;
+    } on AuthException catch (e) {
+      debugPrint('Auth Error: ${e.message}');
+      return false;
     } catch (e) {
-      _errorMessage = e.toString();
+      debugPrint('Unexpected Error: $e');
       return false;
     }
   }
 
+  // Fungsi Register ke Supabase
   Future<bool> register(
     String name,
     String email,
@@ -69,47 +60,52 @@ class AuthProvider with ChangeNotifier {
     DateTime dob,
   ) async {
     try {
-      _errorMessage = null;
-
-      // Register user with Supabase Auth
+      // Kita simpan Nama dan Tgl Lahir di "User Metadata"
       final response = await _supabase.auth.signUp(
         email: email,
         password: password,
+        data: {
+          'full_name': name,
+          'dob': dob.toIso8601String(),
+        },
       );
 
       if (response.user != null) {
-        // Create user profile in database
-        final userProfile = {
-          'id': response.user!.id,
-          'name': name,
-          'email': email,
-          'date_of_birth': dob.toIso8601String(),
-          'created_at': DateTime.now().toIso8601String(),
-        };
-
-        await _supabase.from('users').insert(userProfile);
-
-        // Load the user profile
-        await _loadUserProfile(response.user!.id);
+        _user = _mapSupabaseUserToModel(response.user!);
+        notifyListeners();
         return true;
       }
       return false;
+    } on AuthException catch (e) {
+      debugPrint('Register Error: ${e.message}');
+      return false;
     } catch (e) {
-      _errorMessage = e.toString();
-      print('Registration error: $e'); // Debug print
+      debugPrint('Unexpected Error: $e');
       return false;
     }
   }
 
+  // Fungsi Logout
   Future<void> logout() async {
-    try {
-      await _supabase.auth.signOut();
-      _user = null;
-      _isAuthenticated = false;
-      _errorMessage = null;
-      notifyListeners();
-    } catch (e) {
-      _errorMessage = e.toString();
-    }
+    await _supabase.auth.signOut();
+    _user = null;
+    notifyListeners();
+  }
+
+  // Helper: Mengubah User dari Supabase menjadi UserModel aplikasi kita
+  UserModel _mapSupabaseUserToModel(User supabaseUser) {
+    final metadata = supabaseUser.userMetadata;
+    
+    return UserModel(
+      id: supabaseUser.id,
+      email: supabaseUser.email ?? '',
+      // Ambil nama dari metadata, jika kosong pakai 'Pengguna'
+      name: metadata?['full_name'] ?? 'Pengguna',
+      // Ambil tgl lahir dari metadata
+      dateOfBirth: metadata?['dob'] != null 
+          ? DateTime.tryParse(metadata!['dob']) 
+          : null,
+      password: '', // Password tidak kita simpan di lokal demi keamanan
+    );
   }
 }
