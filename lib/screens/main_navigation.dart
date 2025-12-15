@@ -2,7 +2,8 @@
 import 'package:flutter/material.dart';
 import '../utils/theme.dart';
 import 'home_screen.dart';
-import 'reservation_screen.dart'; // Import halaman reservasi
+import 'reservation_screen.dart';
+import 'profile_screen.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -16,9 +17,9 @@ class _MainNavigationState extends State<MainNavigation> {
 
   // Daftar halaman untuk setiap tab navigasi
   static const List<Widget> _widgetOptions = <Widget>[
-    ReservationScreen(), // Index 0: Halaman Reservasi (Sudah aktif)
-    HomeScreen(),        // Index 1: Beranda Utama
-    Center(child: Text('Halaman Profil (Coming Soon)')), // Index 2: Placeholder
+    ReservationScreen(), // Index 0: Halaman Reservasi
+    HomeScreen(), // Index 1: Beranda Utama
+    ProfileScreen(), // Index 2: Halaman Profil
   ];
 
   void _onItemTapped(int index) {
