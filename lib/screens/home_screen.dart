@@ -1,7 +1,9 @@
 // screens/home_screen.dart
 import 'package:flutter/material.dart';
+import 'package:posyandu_flutter/screens/history_screen.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../screens/history_screen.dart';
 import '../utils/theme.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -92,10 +94,18 @@ class HomeScreen extends StatelessWidget {
                   ),
                   _buildMenuCard(
                     context,
-                    'Data Balita\nTerdaftar',
+                    'Riwayat Pemeriksaan',
                     Icons.child_care_rounded,
                     const Color(0xFFF3E5F5),
                     const Color(0xFF9C27B0),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const HistoryScreen(),
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -169,13 +179,14 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMenuCard(
-    BuildContext context,
-    String title,
-    IconData icon,
-    Color bgColor,
-    Color iconColor,
-  ) {
+    Widget _buildMenuCard(
+      BuildContext context,
+      String title,
+      IconData icon,
+      Color bgColor,
+      Color iconColor, {
+      VoidCallback? onTap,
+    }) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -193,9 +204,7 @@ class HomeScreen extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(24),
-          onTap: () {
-            // Navigate to respective screen
-          },
+          onTap: onTap,
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(

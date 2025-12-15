@@ -37,6 +37,7 @@ dependencies:
   provider: ^6.1.5+1
   intl: ^0.20.2
   google_fonts: ^6.3.3
+  supabase_flutter: ^2.5.0
 
 dev_dependencies:
   flutter_test:
