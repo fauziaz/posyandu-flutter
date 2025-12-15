@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import '../utils/theme.dart';
 import 'home_screen.dart';
+import 'profile_screen.dart';
 
 class MainNavigation extends StatefulWidget {
   const MainNavigation({super.key});
@@ -16,7 +17,7 @@ class _MainNavigationState extends State<MainNavigation> {
   static const List<Widget> _widgetOptions = <Widget>[
     Center(child: Text('Halaman Reservasi (Coming Soon)')),
     HomeScreen(),
-    Center(child: Text('Halaman Profil (Coming Soon)')),
+    ProfileScreen(),
   ];
 
   void _onItemTapped(int index) {
