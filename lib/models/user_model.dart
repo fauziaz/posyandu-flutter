@@ -5,6 +5,7 @@ class UserModel {
   final String email;
   final DateTime? dateOfBirth;
   final String? phoneNumber;
+  final String? avatarUrl;
   final DateTime? createdAt;
 
   UserModel({
@@ -13,6 +14,7 @@ class UserModel {
     required this.email,
     this.dateOfBirth,
     this.phoneNumber,
+    this.avatarUrl,
     this.createdAt,
   });
 
@@ -26,6 +28,7 @@ class UserModel {
           ? DateTime.parse(json['date_of_birth'] as String)
           : null,
       phoneNumber: json['phone_number'] as String?,
+      avatarUrl: json['avatar_url'] as String?,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
           : null,
@@ -40,6 +43,7 @@ class UserModel {
       'email': email,
       'date_of_birth': dateOfBirth?.toIso8601String(),
       'phone_number': phoneNumber,
+      'avatar_url': avatarUrl,
       'created_at': createdAt?.toIso8601String(),
     };
   }
