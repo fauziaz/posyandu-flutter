@@ -18,26 +18,19 @@ class LandingScreen extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Spacer(),
-              // Logo placeholder
-              Container(
-                width: 140,
-                height: 140,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppTheme.primaryColor.withOpacity(0.2),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  Icons.health_and_safety_rounded,
-                  size: 70,
-                  color: AppTheme.primaryColor,
-                ),
+              // Logo
+              Image.asset(
+                'screenshots/logoposyandu.png',
+                width: 180,
+                height: 180,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return Icon(
+                    Icons.health_and_safety_rounded,
+                    size: 80,
+                    color: AppTheme.primaryColor,
+                  );
+                },
               ),
               const SizedBox(height: 32),
               Text(

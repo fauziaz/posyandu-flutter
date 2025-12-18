@@ -6,7 +6,11 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'providers/auth_provider.dart';
 import 'providers/history_provider.dart';
 import 'providers/schedule_provider.dart';
+import 'providers/queue_provider.dart';
+import 'providers/bookmark_provider.dart';
+import 'providers/article_provider.dart';
 import 'screens/landing_screen.dart';
+import 'screens/main_navigation.dart';
 import 'utils/theme.dart';
 import 'utils/supabase_config.dart';
 
@@ -32,12 +36,18 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => HistoryProvider()),
         ChangeNotifierProvider(create: (_) => ScheduleProvider()),
+        ChangeNotifierProvider(create: (_) => QueueProvider()),
+        ChangeNotifierProvider(create: (_) => BookmarkProvider()),
+        ChangeNotifierProvider(create: (_) => ArticleProvider()),
       ],
       child: MaterialApp(
         title: 'Posyandu Harapan Bunda',
         theme: AppTheme.lightTheme,
         initialRoute: '/',
-        routes: {'/': (context) => const LandingScreen()},
+        routes: {
+          '/': (context) => const LandingScreen(),
+          '/main': (context) => const MainNavigation(),
+        },
         debugShowCheckedModeBanner: false,
       ),
     );

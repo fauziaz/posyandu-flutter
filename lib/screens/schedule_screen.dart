@@ -18,8 +18,12 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
   void initState() {
     super.initState();
     // Ambil data jadwal saat layar dibuka
-    Future.microtask(() =>
-        Provider.of<ScheduleProvider>(context, listen: false).fetchSchedules());
+    Future.microtask(
+      () => Provider.of<ScheduleProvider>(
+        context,
+        listen: false,
+      ).fetchSchedules(),
+    );
   }
 
   @override
@@ -33,52 +37,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // 1. Header (Hallo Celine)
-            Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Hallo',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: AppTheme.subTextColor,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      Text(
-                        displayName,
-                        style: TextStyle(
-                          fontSize: 28,
-                          color: AppTheme.textColor,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  // Logo Placeholder
-                   Row(
-                    children: [
-                      Icon(Icons.local_hospital, size: 32, color: AppTheme.primaryColor),
-                      const SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('POSYANDU', style: TextStyle(fontSize: 10, color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
-                          Text('HARAPAN\nBUNDA', style: TextStyle(fontSize: 10, color: AppTheme.primaryColor, fontWeight: FontWeight.bold, height: 1)),
-                        ],
-                      ),
-                      const SizedBox(width: 12),
-                      const Icon(Icons.more_vert, color: AppTheme.textColor),
-                    ],
-                  )
-                ],
-              ),
-            ),
+            const SizedBox(height: 16),
 
             // 2. Konten Utama (White Container Rounded)
             Expanded(
@@ -105,15 +64,19 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                               const SizedBox(width: 12),
                               Text(
                                 'Jadwal',
-                                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.textColor,
-                                ),
+                                style: Theme.of(context).textTheme.headlineSmall
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: AppTheme.textColor,
+                                    ),
                               ),
                             ],
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 6,
+                            ),
                             decoration: BoxDecoration(
                               color: AppTheme.primaryColor.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(20),
@@ -136,8 +99,12 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                       child: scheduleProvider.isLoading
                           ? const Center(child: CircularProgressIndicator())
                           : scheduleProvider.schedules.isEmpty
-                              ? const Center(child: Text("Tidak ada jadwal minggu ini"))
-                              : _buildGroupedList(scheduleProvider.groupedSchedules),
+                          ? const Center(
+                              child: Text("Tidak ada jadwal minggu ini"),
+                            )
+                          : _buildGroupedList(
+                              scheduleProvider.groupedSchedules,
+                            ),
                     ),
                   ],
                 ),
@@ -173,7 +140,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
                 ),
               ),
             ),
-            
+
             // Container Abu-abu pembungkus Card
             Container(
               padding: const EdgeInsets.all(16),
@@ -212,10 +179,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
           IntrinsicHeight(
             child: Row(
               children: [
-                Container(
-                  width: 3,
-                  color: Colors.black87,
-                ),
+                Container(width: 3, color: Colors.black87),
                 const SizedBox(width: 8),
                 Text(
                   schedule.serviceName,
@@ -235,11 +199,16 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
             children: [
               // Label Jam (Border Pink, Text Pink)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFCEDF2),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3)),
+                  border: Border.all(
+                    color: AppTheme.primaryColor.withOpacity(0.3),
+                  ),
                 ),
                 child: Text(
                   '${schedule.startTime}-${schedule.endTime}',
@@ -254,9 +223,14 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
 
               // Label Lokasi (Background Pink Solid)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF2D5DD), // Pink agak gelap sesuai gambar
+                  color: const Color(
+                    0xFFF2D5DD,
+                  ), // Pink agak gelap sesuai gambar
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(

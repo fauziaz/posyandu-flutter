@@ -1,10 +1,11 @@
 // screens/history_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart'; // Untuk format tanggal
+import 'package:intl/intl.dart';
 import '../providers/history_provider.dart';
 import '../models/history_model.dart';
 import '../utils/theme.dart';
+import 'history_detail_screen.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({super.key});
@@ -14,136 +15,80 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+  String _selectedFilter = 'Semua';
+
+  final List<String> _filterOptions = [
+    'Semua',
+    'Imunisasi',
+    'Vitamin',
+    'Pemeriksaan',
+  ];
+
   @override
   void initState() {
     super.initState();
-    // Ambil data dari Supabase saat halaman dibuka
-    Future.microtask(() =>
-        Provider.of<HistoryProvider>(context, listen: false).fetchHistory());
+    Future.microtask(
+      () => Provider.of<HistoryProvider>(context, listen: false).fetchHistory(),
+    );
   }
 
-  // Fungsi untuk memunculkan Form Tambah Data (Bottom Sheet)
-  void _showAddDataSheet(BuildContext context) {
-    final weightController = TextEditingController();
-    final heightController = TextEditingController();
-    final immunizationController = TextEditingController();
-    bool isSubmitting = false;
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => StatefulBuilder(
-        builder: (context, setSheetState) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-            left: 24,
-            right: 24,
-            top: 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Catat Hasil Pemeriksaan',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textColor,
-                    ),
-              ),
-              const SizedBox(height: 24),
-              
-              // Input Berat Badan
-              TextField(
-                controller: weightController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Berat Badan (kg)',
-                  suffixText: 'kg',
-                  prefixIcon: Icon(Icons.monitor_weight_outlined),
-                ),
-              ),
-              const SizedBox(height: 16),
+  List<HistoryModel> _filterHistory(List<HistoryModel> list) {
+    // 1. Filter by Search Query
+    var filtered = list;
+    if (_searchQuery.isNotEmpty) {
+      filtered = list.where((history) {
+        final dateString = DateFormat(
+          'dd MMM yyyy',
+        ).format(history.date).toLowerCase();
+        final immunization = history.immunization?.toLowerCase() ?? '';
+        final query = _searchQuery.toLowerCase();
+        return dateString.contains(query) || immunization.contains(query);
+      }).toList();
+    }
 
-              // Input Tinggi Badan
-              TextField(
-                controller: heightController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Tinggi Badan (cm)',
-                  suffixText: 'cm',
-                  prefixIcon: Icon(Icons.height),
-                ),
-              ),
-              const SizedBox(height: 16),
+    // 2. Filter by Category Chip
+    if (_selectedFilter == 'Semua') {
+      return filtered;
+    } else if (_selectedFilter == 'Imunisasi') {
+      return filtered
+          .where(
+            (h) =>
+                h.immunization != null &&
+                h.immunization!.isNotEmpty &&
+                h.immunization != '-',
+          )
+          .toList();
+    } else if (_selectedFilter == 'Vitamin') {
+      return filtered
+          .where(
+            (h) =>
+                h.vitamin != null && h.vitamin!.isNotEmpty && h.vitamin != '-',
+          )
+          .toList();
+    } else if (_selectedFilter == 'Pemeriksaan') {
+      // Tampilkan yang tidak ada imunisasi/vitamin (hanya cek fisik)
+      // Atau tampilkan semua karena semua adalah pemeriksaan?
+      // Asumsi: Pemeriksaan Rutin (tanpa imunisasi/vitamin spesifik)
+      return filtered
+          .where(
+            (h) =>
+                (h.immunization == null ||
+                    h.immunization!.isEmpty ||
+                    h.immunization == '-') &&
+                (h.vitamin == null || h.vitamin!.isEmpty || h.vitamin == '-'),
+          )
+          .toList();
+    }
 
-              // Input Imunisasi (Opsional)
-              TextField(
-                controller: immunizationController,
-                decoration: const InputDecoration(
-                  labelText: 'Imunisasi (Opsional)',
-                  hintText: 'Contoh: Polio, Campak',
-                  prefixIcon: Icon(Icons.vaccines_outlined),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Tombol Simpan
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: isSubmitting
-                      ? null
-                      : () async {
-                          // Validasi sederhana
-                          if (weightController.text.isEmpty ||
-                              heightController.text.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Berat dan Tinggi wajib diisi')),
-                            );
-                            return;
-                          }
-
-                          setSheetState(() => isSubmitting = true);
-
-                          final newData = HistoryModel(
-                            date: DateTime.now(),
-                            weight: double.parse(weightController.text.replaceAll(',', '.')),
-                            height: double.parse(heightController.text.replaceAll(',', '.')),
-                            immunization: immunizationController.text.isEmpty
-                                ? null
-                                : immunizationController.text,
-                          );
-
-                          final success = await Provider.of<HistoryProvider>(
-                                  context,
-                                  listen: false)
-                              .addHistory(newData);
-
-                          setSheetState(() => isSubmitting = false);
-
-                          if (success && mounted) {
-                            Navigator.pop(context); // Tutup sheet
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Data berhasil disimpan!')),
-                            );
-                          }
-                        },
-                  child: isSubmitting
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Simpan Data'),
-                ),
-              ),
-              const SizedBox(height: 24),
-            ],
-          ),
-        ),
-      ),
-    );
+    return filtered;
   }
 
   @override
@@ -152,51 +97,146 @@ class _HistoryScreenState extends State<HistoryScreen> {
       appBar: AppBar(
         title: const Text('Riwayat Pemeriksaan'),
         centerTitle: true,
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddDataSheet(context),
-        backgroundColor: AppTheme.primaryColor,
-        icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Catat Data', style: TextStyle(color: Colors.white)),
+        elevation: 0,
       ),
       body: Consumer<HistoryProvider>(
         builder: (context, provider, child) {
-          if (provider.isLoading) {
+          if (provider.isLoading && provider.historyList.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          if (provider.historyList.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.history_edu_rounded,
-                      size: 80, color: Colors.grey.shade300),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Belum ada riwayat pemeriksaan',
-                    style: TextStyle(color: AppTheme.subTextColor),
-                  ),
-                ],
-              ),
-            );
-          }
+          final filteredList = _filterHistory(provider.historyList);
 
-          return RefreshIndicator(
-            onRefresh: () => provider.fetchHistory(),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: provider.historyList.length,
-              itemBuilder: (context, index) {
-                final data = provider.historyList[index];
-                return HistoryCard(
-                  date: DateFormat('dd MMM yyyy').format(data.date),
-                  weight: '${data.weight} kg',
-                  height: '${data.height} cm',
-                  immunization: data.immunization,
-                );
-              },
-            ),
+          return Column(
+            children: [
+              // Search Bar
+              Container(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                color: Colors.white,
+                child: TextField(
+                  controller: _searchController,
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                    });
+                  },
+                  decoration: InputDecoration(
+                    hintText: 'Cari tanggal atau imunisasi...',
+                    prefixIcon: const Icon(Icons.search),
+                    filled: true,
+                    fillColor: Colors.grey.shade100,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+              ),
+
+              // Filter Chips
+              Container(
+                height: 50,
+                width: double.infinity,
+                color: Colors.white,
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _filterOptions.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(width: 8),
+                  itemBuilder: (context, index) {
+                    final filter = _filterOptions[index];
+                    final isSelected = _selectedFilter == filter;
+                    return ChoiceChip(
+                      label: Text(filter),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        if (selected) {
+                          setState(() {
+                            _selectedFilter = filter;
+                          });
+                        }
+                      },
+                      selectedColor: AppTheme.primaryColor,
+                      labelStyle: TextStyle(
+                        color: isSelected ? Colors.white : AppTheme.textColor,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                      backgroundColor: Colors.grey.shade100,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        side: BorderSide(
+                          color: isSelected
+                              ? AppTheme.primaryColor
+                              : Colors.transparent,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
+              // Shadow separator
+              Container(
+                height: 1,
+                decoration: BoxDecoration(
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withOpacity(0.1),
+                      spreadRadius: 1,
+                      blurRadius: 3,
+                      offset: const Offset(0, 3),
+                    ),
+                  ],
+                ),
+              ),
+
+              // List Data
+              Expanded(
+                child: filteredList.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.search_off_rounded,
+                              size: 80,
+                              color: Colors.grey.shade300,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              provider.historyList.isEmpty
+                                  ? 'Belum ada data riwayat'
+                                  : 'Data tidak ditemukan',
+                              style: TextStyle(color: AppTheme.subTextColor),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: filteredList.length,
+                        itemBuilder: (context, index) {
+                          final data = filteredList[index];
+                          return HistoryCard(
+                            history: data,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      HistoryDetailScreen(history: data),
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+              ),
+            ],
           );
         },
       ),
@@ -204,142 +244,155 @@ class _HistoryScreenState extends State<HistoryScreen> {
   }
 }
 
-// Widget Card (Sama seperti desain sebelumnya, tapi reusable)
 class HistoryCard extends StatelessWidget {
-  final String date;
-  final String weight;
-  final String height;
-  final String? immunization;
+  final HistoryModel history;
+  final VoidCallback onTap;
 
-  const HistoryCard({
-    super.key,
-    required this.date,
-    required this.weight,
-    required this.height,
-    this.immunization,
-  });
+  const HistoryCard({super.key, required this.history, required this.onTap});
+
+  String get _activityTitle {
+    if (history.immunization != null &&
+        history.immunization!.isNotEmpty &&
+        history.immunization != '-') {
+      return 'Imunisasi ${history.immunization}';
+    } else if (history.vitamin != null &&
+        history.vitamin!.isNotEmpty &&
+        history.vitamin != '-') {
+      return 'Pemberian Vitamin';
+    } else {
+      return 'Pemeriksaan Rutin';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      elevation: 3,
+      elevation: 2,
       margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Pemeriksaan $date',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _activityTitle,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.textColor,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          DateFormat(
+                            'EEEE, dd MMMM yyyy',
+                            'id_ID',
+                          ).format(history.date),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.arrow_forward_ios,
+                    size: 16,
+                    color: Colors.grey,
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 16),
-
-            Row(
-              children: [
-                Expanded(
-                  child: _SubCard(
-                    icon: Icons.monitor_weight_rounded,
-                    title: 'Berat Badan',
-                    value: weight,
-                    color: Colors.blue,
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: _InfoItem(
+                      icon: Icons.monitor_weight_outlined,
+                      label: 'Berat',
+                      value: '${history.weight} kg',
+                      color: Colors.blue,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _SubCard(
-                    icon: Icons.height_outlined,
-                    title: 'Tinggi Badan',
-                    value: height,
-                    color: Colors.green,
+                  Expanded(
+                    child: _InfoItem(
+                      icon: Icons.height,
+                      label: 'Tinggi',
+                      value: '${history.height} cm',
+                      color: Colors.green,
+                    ),
                   ),
-                ),
-              ],
-            ),
-
-            if (immunization != null && immunization!.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              _SubCard(
-                icon: Icons.vaccines_rounded,
-                title: 'Imunisasi',
-                value: immunization!,
-                color: Colors.orange,
-                fullWidth: true,
+                  if (history.immunization != null &&
+                      history.immunization!.isNotEmpty &&
+                      history.immunization != '-')
+                    Expanded(
+                      child: _InfoItem(
+                        icon: Icons.vaccines,
+                        label: 'Imunisasi',
+                        value: history.immunization!,
+                        color: Colors.orange,
+                      ),
+                    ),
+                ],
               ),
             ],
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _SubCard extends StatelessWidget {
+class _InfoItem extends StatelessWidget {
   final IconData icon;
-  final String title;
+  final String label;
   final String value;
   final Color color;
-  final bool fullWidth;
 
-  const _SubCard({
+  const _InfoItem({
     required this.icon,
-    required this.title,
+    required this.label,
     required this.value,
     required this.color,
-    this.fullWidth = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: fullWidth ? double.infinity : null,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.2),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: color, size: 22),
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            shape: BoxShape.circle,
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: color,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+          child: Icon(icon, color: color, size: 20),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          label,
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
     );
   }
 }
