@@ -1,5 +1,6 @@
 // providers/auth_provider.dart
 import 'package:flutter/material.dart';
+import 'dart:typed_data';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 
@@ -19,13 +20,28 @@ class AuthProvider with ChangeNotifier {
   }
 
   // Cek apakah user sudah login sebelumnya (Session persistence)
-  void _loadUser() {
+  void _loadUser() async {
     final session = _supabase.auth.currentSession;
     final currentUser = _supabase.auth.currentUser;
 
     if (session != null && currentUser != null) {
-      _user = _mapSupabaseUserToModel(currentUser);
+      await _loadUserProfile(currentUser.id);
+    }
+  }
+
+  // Load user profile from database
+  Future<void> _loadUserProfile(String userId) async {
+    try {
+      final response = await _supabase
+          .from('users')
+          .select()
+          .eq('id', userId)
+          .single();
+
+      _user = UserModel.fromJson(response);
       notifyListeners();
+    } catch (e) {
+      debugPrint('Load Profile Error: $e');
     }
   }
 
@@ -38,8 +54,7 @@ class AuthProvider with ChangeNotifier {
       );
 
       if (response.user != null) {
-        _user = _mapSupabaseUserToModel(response.user!);
-        notifyListeners();
+        await _loadUserProfile(response.user!.id);
         return true;
       }
       return false;
@@ -53,6 +68,7 @@ class AuthProvider with ChangeNotifier {
   }
 
   // Fungsi Register ke Supabase
+  // Fungsi Register ke Supabase
   Future<bool> register(
     String name,
     String email,
@@ -60,19 +76,26 @@ class AuthProvider with ChangeNotifier {
     DateTime dob,
   ) async {
     try {
-      // Kita simpan Nama dan Tgl Lahir di "User Metadata"
+      // Register user dengan Supabase Auth
       final response = await _supabase.auth.signUp(
         email: email,
         password: password,
-        data: {
-          'full_name': name,
-          'dob': dob.toIso8601String(),
-        },
       );
 
       if (response.user != null) {
-        _user = _mapSupabaseUserToModel(response.user!);
-        notifyListeners();
+        // Simpan user profile ke tabel users
+        final userProfile = {
+          'id': response.user!.id,
+          'name': name,
+          'email': email,
+          'date_of_birth': dob.toIso8601String(),
+          'created_at': DateTime.now().toIso8601String(),
+        };
+
+        await _supabase.from('users').insert(userProfile);
+
+        // Load user profile
+        await _loadUserProfile(response.user!.id);
         return true;
       }
       return false;
@@ -85,27 +108,91 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  // Fungsi Logout
   Future<void> logout() async {
-    await _supabase.auth.signOut();
-    _user = null;
-    notifyListeners();
+    try {
+      await _supabase.auth.signOut();
+      _user = null;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Logout Error: $e');
+    }
   }
 
-  // Helper: Mengubah User dari Supabase menjadi UserModel aplikasi kita
-  UserModel _mapSupabaseUserToModel(User supabaseUser) {
-    final metadata = supabaseUser.userMetadata;
-    
-    return UserModel(
-      id: supabaseUser.id,
-      email: supabaseUser.email ?? '',
-      // Ambil nama dari metadata, jika kosong pakai 'Pengguna'
-      name: metadata?['full_name'] ?? 'Pengguna',
-      // Ambil tgl lahir dari metadata
-      dateOfBirth: metadata?['dob'] != null 
-          ? DateTime.tryParse(metadata!['dob']) 
-          : null,
-      password: '', // Password tidak kita simpan di lokal demi keamanan
-    );
+  Future<String?> updateProfile({
+    required String name,
+    required String phoneNumber,
+    required DateTime? dateOfBirth,
+    String? avatarUrl,
+  }) async {
+    try {
+      if (_user == null) return 'User tidak ditemukan';
+
+      final updates = {
+        'name': name,
+        'phone_number': phoneNumber,
+        'date_of_birth': dateOfBirth?.toIso8601String(),
+        if (avatarUrl != null) 'avatar_url': avatarUrl,
+        // 'updated_at': DateTime.now().toIso8601String(), // Optional if you have this column
+      };
+
+      await _supabase.from('users').update(updates).eq('id', _user!.id);
+      await _loadUserProfile(_user!.id);
+      return null; // Berhasil
+    } catch (e) {
+      debugPrint('Update Profile Error: $e');
+      return e.toString(); // Gagal, kembalikan pesan error
+    }
+  }
+
+  Future<String?> uploadAvatar(Uint8List bytes, String fileExtension) async {
+    try {
+      if (_user == null) return null;
+
+      final fileName =
+          '${_user!.id}/${DateTime.now().millisecondsSinceEpoch}.$fileExtension';
+
+      await _supabase.storage
+          .from('avatars')
+          .uploadBinary(
+            fileName,
+            bytes,
+            fileOptions: const FileOptions(upsert: true),
+          );
+
+      final imageUrl = _supabase.storage.from('avatars').getPublicUrl(fileName);
+      return imageUrl;
+    } catch (e) {
+      debugPrint('Upload Avatar Error: $e');
+      return null;
+    }
+  }
+
+  Future<String?> updateEmail(String newEmail) async {
+    try {
+      final response = await _supabase.auth.updateUser(
+        UserAttributes(email: newEmail),
+      );
+      if (response.user != null) {
+        // Update juga di tabel users public
+        await _supabase
+            .from('users')
+            .update({'email': newEmail})
+            .eq('id', _user!.id);
+        await _loadUserProfile(_user!.id);
+        return null;
+      }
+      return 'Gagal update email';
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
+  Future<String?> updatePassword(String newPassword) async {
+    try {
+      await _supabase.auth.updateUser(UserAttributes(password: newPassword));
+      return null;
+    } catch (e) {
+      return e.toString();
+    }
   }
 }
