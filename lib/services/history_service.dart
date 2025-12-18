@@ -12,7 +12,7 @@ class HistoryService {
   Future<List<HistoryModel>> getHistory() async {
     try {
       final userId = _supabase.auth.currentUser!.id;
-      
+
       final List<dynamic> response = await _supabase
           .from(_tableName)
           .select()
@@ -35,7 +35,10 @@ class HistoryService {
         'date': history.date.toIso8601String(),
         'weight': history.weight,
         'height': history.height,
+        'head_circumference': history.headCircumference,
         'immunization': history.immunization,
+        'vitamin': history.vitamin,
+        'notes': history.notes,
       });
     } catch (e) {
       throw Exception('Gagal menyimpan data: $e');
